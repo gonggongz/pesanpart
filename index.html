@@ -163,7 +163,7 @@
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz099FETw0doNdHt2B16tmQ8JcYs-jBUiTT2ycp48C2V6FewSWFPPQFwOPxYRGry-xL8Q/exec"; // GANTI DENGAN URL WEB APP ANDA
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4Ht_RHsltqO2KjiTVXAhrt9uOZB_3yA21zkumFp1e2I9sSP5bPnQJCgi_gk4BJHnq/exec"; // GANTI DENGAN URL WEB APP ANDA
         if (SCRIPT_URL.includes("URL_WEB_APP_ANDA")) {
             document.body.innerHTML = `<div class="h-screen flex items-center justify-center bg-gray-900"><div class="text-center p-8 bg-gray-800 rounded-lg shadow-lg max-w-2xl border border-red-500"><h1 class="text-3xl font-bold text-red-400 mb-4">KONFIGURASI DIPERLUKAN</h1><p class="text-gray-300 mb-6">URL Google Apps Script belum diatur. Ganti URL placeholder di file index.html, lalu deploy ulang.</p></div></div>`;
             throw new Error("SCRIPT_URL is not configured.");
