@@ -8,6 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- 1. Tambahkan SDK EmailJS -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <!-- 2. Tambahkan Library Chart.js untuk Dasbor -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
         .loader {
@@ -23,7 +25,7 @@
         .filter-btn.active { background-color: #2563eb; color: white; }
         .filter-btn.inactive { background-color: #4a5568; color: #d1d5db; }
         .nav-link.active { background-color: #2563eb; }
-        @media print { body, #app-container, .container, #main-nav, #loginPage, #formPage, #adminPage, .modal { display: none !important; } .print-container { display: block !important; } }
+        @media print { body, #app-container, .container, #main-nav, #loginPage, #formPage, #adminPage, #dashboardPage, .modal { display: none !important; } .print-container { display: block !important; } }
     </style>
 </head>
 <body class="bg-gray-900 text-white antialiased">
@@ -66,6 +68,36 @@
             </div>
         </div>
 
+        <!-- Halaman Dasbor (Admin) -->
+        <div id="dashboardPage" class="hidden">
+            <header class="text-center mb-8">
+                <h1 class="text-3xl md:text-4xl font-bold text-white">Dasbor Analitik</h1>
+                <p class="text-gray-400 mt-2">Ringkasan data permintaan sparepart.</p>
+            </header>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-gray-800 p-6 rounded-lg text-center">
+                    <p class="text-sm text-gray-400">Total Permintaan</p>
+                    <p id="totalRequests" class="text-4xl font-bold mt-2">0</p>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-lg text-center">
+                    <p class="text-sm text-gray-400">Menunggu Persetujuan</p>
+                    <p id="pendingRequests" class="text-4xl font-bold mt-2 text-yellow-400">0</p>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-lg text-center">
+                    <p class="text-sm text-gray-400">Part Terpopuler</p>
+                    <p id="popularPart" class="text-2xl font-bold mt-2">-</p>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-lg text-center">
+                    <p class="text-sm text-gray-400">Cabang Teraktif</p>
+                    <p id="activeBranch" class="text-2xl font-bold mt-2">-</p>
+                </div>
+            </div>
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <h3 class="text-xl font-semibold mb-4">Permintaan per Cabang</h3>
+                <canvas id="requestsByBranchChart"></canvas>
+            </div>
+        </div>
+
         <!-- Halaman Formulir -->
         <div id="formPage" class="hidden">
              <header class="text-center mb-8">
@@ -100,10 +132,22 @@
                             <textarea id="keterangan" name="keterangan" rows="2" class="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white"></textarea>
                         </div>
                     </div>
-                    <h3 class="text-lg font-semibold mb-2 text-gray-200">Item Sparepart</h3>
+                    
+                    <div class="border-t border-b border-gray-700 py-6 my-6">
+                        <h3 class="text-lg font-semibold mb-2 text-gray-200">Unggah via CSV</h3>
+                         <p class="text-sm text-gray-400 mb-4">Format: Kolom A untuk Kode Part, Kolom B untuk Jumlah. Tanpa baris header.</p>
+                        <div class="flex items-center space-x-4">
+                            <input type="file" id="csvFileInput" accept=".csv" class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700">
+                            <button type="button" id="processCsvBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg text-sm">Proses CSV</button>
+                        </div>
+                        <p id="csvStatus" class="mt-2 text-sm text-yellow-400"></p>
+                    </div>
+
+                    <h3 class="text-lg font-semibold mb-2 text-gray-200">Item Sparepart (Manual atau Hasil Pratinjau CSV)</h3>
                     <div id="partsContainer" class="space-y-4"></div>
-                    <div class="flex justify-between items-center mt-4">
-                        <button type="button" id="addPartBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-sm">+ Tambah Part</button>
+                    
+                    <div class="flex justify-between items-center mt-6">
+                        <button type="button" id="addPartBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-sm">+ Tambah Baris Manual</button>
                         <button type="submit" id="submitButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg inline-flex items-center">
                             <svg id="submitIcon" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd" /></svg>
                             <span id="submitText">Ajukan Permintaan</span>
@@ -130,6 +174,7 @@
                         <div class="flex items-center space-x-2">
                             <button id="filterPending" class="filter-btn active font-semibold py-2 px-4 rounded-md text-sm">Belum Disetujui</button>
                             <button id="filterAll" class="filter-btn inactive font-semibold py-2 px-4 rounded-md text-sm">Semua</button>
+                            <button id="exportCsvBtn" class="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-md text-sm">Ekspor CSV</button>
                         </div>
                     </div>
                 </div>
@@ -189,17 +234,17 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
         
-        // 2. Konfigurasi EmailJS Anda
+        // Konfigurasi EmailJS Anda
         const EMAILJS_SERVICE_ID = 'service_u9ai5v9';
         const EMAILJS_TEMPLATE_ID = 'template_pqx5ud5';
         const EMAILJS_PUBLIC_KEY = 'gD67vNv6TJ4os7A2Z';
-
         emailjs.init(EMAILJS_PUBLIC_KEY);
 
         // --- ELEMEN UI ---
         const loginPage = document.getElementById('loginPage');
         const formPage = document.getElementById('formPage');
         const adminPage = document.getElementById('adminPage');
+        const dashboardPage = document.getElementById('dashboardPage');
         const mainNav = document.getElementById('main-nav');
         const navLinks = document.getElementById('nav-links');
         const welcomeMessage = document.getElementById('welcomeMessage');
@@ -220,26 +265,50 @@
         const deleteModal = document.getElementById('deleteModal');
         const confirmDeleteBtn = document.getElementById('confirmDelete');
         const cancelDeleteBtn = document.getElementById('cancelDelete');
+        const exportCsvBtn = document.getElementById('exportCsvBtn');
+        const csvFileInput = document.getElementById('csvFileInput');
+        const processCsvBtn = document.getElementById('processCsvBtn');
+        const csvStatus = document.getElementById('csvStatus');
 
         let allRequests = [];
         let currentFilter = 'Diajukan';
         let searchTerm = '';
-        let unsubscribe; // Untuk listener real-time
+        let unsubscribe; 
         let deleteRequestId = null;
+        let requestsChart = null;
 
-        // --- Logika Navigasi dan Halaman ---
+        // --- DEKLARASI SEMUA FUNGSI ---
+
         const showPage = (page) => {
             loginPage.style.display = 'none';
             formPage.style.display = 'none';
             adminPage.style.display = 'none';
+            dashboardPage.style.display = 'none';
             page.style.display = 'block';
         };
 
         const setupUIForUser = (user) => {
             mainNav.style.display = 'block';
             welcomeMessage.textContent = `Selamat datang, ${user.email}!`;
+            navLinks.innerHTML = ''; 
             
-            navLinks.innerHTML = '';
+            if (user.role === 'admin') {
+                const dashboardLink = document.createElement('button');
+                dashboardLink.textContent = 'Dasbor';
+                dashboardLink.className = 'nav-link font-semibold py-2 px-4 rounded-md text-sm transition-colors';
+                dashboardLink.onclick = () => { showPage(dashboardPage); updateNavLinks('dashboard'); };
+                navLinks.appendChild(dashboardLink);
+
+                const adminLink = document.createElement('button');
+                adminLink.textContent = 'Daftar Permintaan';
+                adminLink.className = 'nav-link font-semibold py-2 px-4 rounded-md text-sm transition-colors';
+                adminLink.onclick = () => { 
+                    showPage(adminPage); 
+                    updateNavLinks('admin'); 
+                };
+                navLinks.appendChild(adminLink);
+            }
+            
             const formLink = document.createElement('button');
             formLink.textContent = 'Buat Permintaan';
             formLink.className = 'nav-link font-semibold py-2 px-4 rounded-md text-sm transition-colors';
@@ -247,18 +316,9 @@
             navLinks.appendChild(formLink);
             
             if (user.role === 'admin') {
-                const adminLink = document.createElement('button');
-                adminLink.textContent = 'Daftar Permintaan';
-                adminLink.className = 'nav-link font-semibold py-2 px-4 rounded-md text-sm transition-colors';
-                adminLink.onclick = () => { 
-                    showPage(adminPage); 
-                    if (!unsubscribe) listenForRequests();
-                    updateNavLinks('admin'); 
-                };
-                navLinks.appendChild(adminLink);
-                showPage(adminPage);
+                showPage(dashboardPage);
                 listenForRequests();
-                updateNavLinks('admin');
+                updateNavLinks('dashboard');
             } else {
                 showPage(formPage);
                 updateNavLinks('form');
@@ -269,13 +329,13 @@
             document.querySelectorAll('.nav-link').forEach(link => {
                 link.classList.remove('active');
                 if ((activePage === 'form' && link.textContent === 'Buat Permintaan') ||
-                    (activePage === 'admin' && link.textContent === 'Daftar Permintaan')) {
+                    (activePage === 'admin' && link.textContent === 'Daftar Permintaan') ||
+                    (activePage === 'dashboard' && link.textContent === 'Dasbor')) {
                     link.classList.add('active');
                 }
             });
         };
         
-        // --- Fungsi-fungsi Firebase ---
         const handleLogin = async (e) => {
             e.preventDefault();
             loginStatus.textContent = '';
@@ -286,7 +346,7 @@
             try {
                 await auth.signInWithEmailAndPassword(email, password);
             } catch (error) {
-                loginStatus.textContent = "Login gagal. Pastikan email & password benar dan akun sudah dibuat di Firebase Authentication.";
+                loginStatus.textContent = "Login gagal. Pastikan email & password benar.";
                 console.error("Firebase login error:", error);
             } finally {
                 loginButton.disabled = false;
@@ -313,10 +373,6 @@
         }
 
         const listenForRequests = () => {
-            loader.style.display = 'flex';
-            requestsContainer.innerHTML = '';
-            noDataMessage.style.display = 'none';
-            
             if (unsubscribe) unsubscribe();
             
             unsubscribe = db.collection("Permintaan").orderBy("timestamp", "desc")
@@ -327,15 +383,10 @@
                         const reqId = data.requestId;
                         if (!requestsMap.has(reqId)) {
                             requestsMap.set(reqId, {
-                                docIds: [],
-                                requestId: reqId,
+                                docIds: [], requestId: reqId,
                                 timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
-                                namaPemesan: data.namaPemesan,
-                                cabang: data.cabang,
-                                jenisOrder: data.jenisOrder,
-                                keterangan: data.keterangan,
-                                status: data.status,
-                                parts: []
+                                namaPemesan: data.namaPemesan, cabang: data.cabang, jenisOrder: data.jenisOrder,
+                                keterangan: data.keterangan, status: data.status, parts: []
                             });
                         }
                         const requestGroup = requestsMap.get(reqId);
@@ -347,21 +398,31 @@
                         });
                     });
                     allRequests = Array.from(requestsMap.values());
-                    renderRequests();
-                    loader.style.display = 'none';
+                    
+                    loader.style.display = 'none'; // FIX: Sembunyikan loader di sini
+                    
+                    if (document.getElementById('adminPage').style.display === 'block') {
+                        renderRequests();
+                    }
+                    if (document.getElementById('dashboardPage').style.display === 'block') {
+                        showDashboard();
+                    }
                 }, error => {
                     console.error("Error listening for requests:", error);
-                    noDataMessage.textContent = "Gagal memuat data dari Firestore.";
-                    noDataMessage.style.display = 'block';
-                    loader.style.display = 'none';
+                    loader.style.display = 'none'; // FIX: Sembunyikan loader juga jika ada error
+                    if (document.getElementById('adminPage').style.display === 'block') {
+                        noDataMessage.textContent = "Gagal memuat data dari Firestore.";
+                        noDataMessage.style.display = 'block';
+                    }
                 });
         };
 
-        requestForm.addEventListener('submit', async (e) => {
+        const requestFormSubmit = async (e) => {
             e.preventDefault();
             const submitText = document.getElementById('submitText');
             const submitLoader = document.getElementById('submitLoader');
-            submitText.textContent = 'Mengirim...'; submitLoader.style.display = 'block'; submitButton.disabled = true;
+            const submitIcon = document.getElementById('submitIcon');
+            submitText.textContent = 'Mengirim...'; submitLoader.style.display = 'block'; submitIcon.style.display = 'none'; submitButton.disabled = true;
 
             const branch = requestForm.cabang.value;
             const today = new Date();
@@ -369,14 +430,10 @@
             const idPrefix = `${branch.substring(0, 3).toUpperCase()}-${dateStr}-`;
 
             try {
-                const query = await db.collection("Permintaan")
-                                      .where("requestId", ">=", idPrefix)
-                                      .where("requestId", "<", `${idPrefix}\uffff`)
-                                      .orderBy("requestId", "desc").limit(1).get();
+                const query = await db.collection("Permintaan").where("requestId", ">=", idPrefix).where("requestId", "<", `${idPrefix}\uffff`).orderBy("requestId", "desc").limit(1).get();
                 let lastSeq = 0;
                 if (!query.empty) {
-                    const lastId = query.docs[0].data().requestId;
-                    lastSeq = parseInt(lastId.split('-')[2], 10);
+                    lastSeq = parseInt(query.docs[0].data().requestId.split('-')[2], 10);
                 }
                 const newSeq = lastSeq + 1;
                 const requestId = `${idPrefix}${newSeq.toString().padStart(3, '0')}`;
@@ -393,10 +450,17 @@
                         namaSparepart: row.querySelector('[name=namaSparepart]').value,
                         jumlah: parseInt(row.querySelector('[name=jumlah]').value, 10)
                     };
-                    partsData.push(part);
-                    parts_html += `<li>${part.namaSparepart} (${part.kodeSparepart}) - <strong>Jumlah: ${part.jumlah}</strong></li>`;
+                    if(part.kodeSparepart && part.namaSparepart && part.jumlah > 0 && part.namaSparepart !== 'KODE TIDAK DITEMUKAN'){
+                        partsData.push(part);
+                        parts_html += `<li>${part.namaSparepart} (${part.kodeSparepart}) - <strong>Jumlah: ${part.jumlah}</strong></li>`;
+                    }
                 });
                 parts_html += "</ul>";
+                
+                if(partsData.length === 0){
+                    alert("Tidak ada item valid untuk diminta. Pastikan semua baris terisi dengan benar.");
+                    throw new Error("No valid items to request.");
+                }
 
                 const emailParams = {
                     requestId: requestId,
@@ -409,16 +473,11 @@
                 partsData.forEach(part => {
                     const newRequestRef = db.collection("Permintaan").doc();
                     batch.set(newRequestRef, {
-                        requestId: requestId,
-                        timestamp: timestamp,
-                        namaPemesan: requestForm.namaPemesan.value,
-                        cabang: branch,
-                        jenisOrder: requestForm.jenisOrder.value,
-                        keterangan: requestForm.keterangan.value,
+                        requestId: requestId, timestamp: timestamp,
+                        namaPemesan: requestForm.namaPemesan.value, cabang: branch,
+                        jenisOrder: requestForm.jenisOrder.value, keterangan: requestForm.keterangan.value,
                         status: "Diajukan",
-                        kodeSparepart: part.kodeSparepart,
-                        namaSparepart: part.namaSparepart,
-                        jumlah: part.jumlah
+                        kodeSparepart: part.kodeSparepart, namaSparepart: part.namaSparepart, jumlah: part.jumlah
                     });
                 });
                 await batch.commit();
@@ -430,20 +489,21 @@
 
                 requestForm.reset();
                 partsContainer.innerHTML = '';
-                addPartRow();
+                addPartRow(`manual-${Date.now()}`);
             } catch (error) {
                 console.error("Error adding request: ", error);
-                statusMessage.textContent = "Terjadi kesalahan saat menyimpan data.";
-                 statusMessage.className = 'text-red-400 mt-4 text-center';
+                statusMessage.textContent = error.message === "No valid items to request." ? "Pengajuan dibatalkan." : "Terjadi kesalahan saat menyimpan data.";
+                statusMessage.className = 'text-red-400 mt-4 text-center';
             } finally {
                 setTimeout(() => {
                      submitText.textContent = 'Ajukan Permintaan';
                      submitLoader.style.display = 'none';
+                     submitIcon.style.display = 'block';
                      submitButton.disabled = false;
-                     statusMessage.textContent = '';
-                }, 5000);
+                     setTimeout(() => { statusMessage.textContent = ''; }, 3000);
+                }, 2000);
             }
-        });
+        };
 
         window.findPartName = async (event) => {
             const partCodeInput = event.target;
@@ -484,12 +544,7 @@
                 const docRef = db.collection("Permintaan").doc(docId);
                 batch.update(docRef, { status: newStatus });
             });
-            try {
-                await batch.commit();
-            } catch(error) {
-                console.error("Error updating status:", error);
-                alert("Gagal memperbarui status.");
-            }
+            try { await batch.commit(); } catch(error) { console.error("Error updating status:", error); alert("Gagal memperbarui status."); }
         };
         
         window.openDeleteModal = (requestId) => {
@@ -497,57 +552,23 @@
             deleteModal.style.display = 'block';
         };
 
-        confirmDeleteBtn.addEventListener('click', async () => {
+        const confirmDelete = async () => {
             const req = allRequests.find(r => r.requestId === deleteRequestId);
             if (!req || !req.docIds) return;
-            
             const batch = db.batch();
             req.docIds.forEach(docId => {
                 const docRef = db.collection("Permintaan").doc(docId);
                 batch.delete(docRef);
             });
-            try {
-                await batch.commit();
-            } catch(error) {
-                console.error("Error deleting request:", error);
-                alert("Gagal menghapus permintaan.");
-            } finally {
-                deleteModal.style.display = 'none';
-                deleteRequestId = null;
-            }
-        });
+            try { await batch.commit(); } 
+            catch(error) { console.error("Error deleting request:", error); alert("Gagal menghapus permintaan."); } 
+            finally { deleteModal.style.display = 'none'; deleteRequestId = null; }
+        };
 
-        // --- Inisialisasi Aplikasi ---
-        document.addEventListener('DOMContentLoaded', () => {
-            auth.onAuthStateChanged(async (user) => {
-                if (user) {
-                    try {
-                        const userDoc = await db.collection("users").doc(user.uid).get();
-                        let userRole = 'user'; // Default role
-                        if (userDoc.exists && userDoc.data().role) {
-                            userRole = userDoc.data().role;
-                        }
-                        const currentUser = { email: user.email, uid: user.uid, role: userRole };
-                        sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-                        setupUIForUser(currentUser);
-                    } catch (error) {
-                        console.error("Error fetching user role:", error);
-                        const currentUser = { email: user.email, uid: user.uid, role: 'user' };
-                        setupUIForUser(currentUser);
-                    }
-                } else {
-                    showPage(loginPage);
-                }
-            });
-            addPartRow();
-        });
-
-        // --- Fungsi-fungsi UI ---
-        const addPartRow = () => {
-            const partId = Date.now();
+        const addPartRow = (partId, isCsv = false) => {
             const partRow = document.createElement('div');
             partRow.className = 'p-4 border border-gray-700 rounded-lg grid grid-cols-1 md:grid-cols-12 gap-4 items-end relative';
-            partRow.id = `part-${partId}`;
+            partRow.id = partId;
             partRow.innerHTML = `
                 <div class="md:col-span-4 relative">
                     <label class="block text-xs font-medium text-gray-400 mb-1">Kode Sparepart</label>
@@ -563,10 +584,74 @@
                     <input type="number" name="jumlah" min="1" class="w-full bg-gray-600 border border-gray-500 rounded-md py-2 px-3 text-white text-sm" required>
                 </div>
                 <div class="md:col-span-1">
-                    <button type="button" onclick="removePartRow('part-${partId}')" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-2 rounded-md">&times;</button>
+                    <button type="button" onclick="removePartRow('${partId}')" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-2 rounded-md">&times;</button>
                 </div>
             `;
-            partsContainer.appendChild(partRow);
+            if (isCsv) {
+                partsContainer.appendChild(partRow);
+            } else {
+                partsContainer.insertBefore(partRow, partsContainer.firstChild);
+            }
+        };
+        
+        const processCSV = () => {
+            const file = csvFileInput.files[0];
+            if (!file) {
+                alert("Silakan pilih file CSV terlebih dahulu.");
+                return;
+            }
+
+            csvStatus.textContent = "Memproses file... Mohon tunggu.";
+            partsContainer.innerHTML = ''; 
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const csvText = event.target.result;
+                const rows = csvText.split('\n').filter(row => row.trim() !== '');
+                
+                let successCount = 0;
+                let errorCount = 0;
+
+                for (const [index, row] of rows.entries()) {
+                    const columns = row.split(',').map(item => item.trim());
+                    const partCode = columns[0] ? columns[0].toUpperCase() : '';
+                    const quantity = columns[1] ? parseInt(columns[1], 10) : 0;
+
+                    if (partCode && quantity > 0) {
+                        const partId = `csv-${Date.now()}-${index}`;
+                        addPartRow(partId, true);
+
+                        const partRowElement = document.getElementById(partId);
+                        const codeInput = partRowElement.querySelector('[name=kodeSparepart]');
+                        const nameInput = partRowElement.querySelector('[name=namaSparepart]');
+                        const qtyInput = partRowElement.querySelector('[name=jumlah]');
+                        const notificationDiv = partRowElement.querySelector('.part-notification');
+                        
+                        codeInput.value = partCode;
+                        qtyInput.value = quantity;
+
+                        try {
+                            const doc = await db.collection("MasterSparepart").doc(partCode).get();
+                            if (doc.exists) {
+                                nameInput.value = doc.data().nama;
+                                successCount++;
+                            } else {
+                                nameInput.value = "KODE TIDAK DITEMUKAN";
+                                notificationDiv.textContent = 'Kode part tidak ditemukan.';
+                                codeInput.classList.add('border-red-500');
+                                errorCount++;
+                            }
+                        } catch(err) {
+                            nameInput.value = "ERROR KONEKSI";
+                            notificationDiv.textContent = 'Error koneksi.';
+                            codeInput.classList.add('border-red-500');
+                            errorCount++;
+                        }
+                    }
+                }
+                csvStatus.textContent = `Proses selesai. Berhasil: ${successCount}, Gagal: ${errorCount}. Silakan periksa daftar di atas.`;
+            };
+            reader.readAsText(file);
         };
 
         window.removePartRow = (partId) => {
@@ -655,23 +740,139 @@
             printWindow.document.close();
         };
 
-        loginForm.addEventListener('submit', handleLogin);
-        document.getElementById('logoutButton').addEventListener('click', handleLogout);
-        addPartBtn.addEventListener('click', addPartRow);
-        cancelDeleteBtn.addEventListener('click', () => { deleteModal.style.display = 'none'; deleteRequestId = null; });
-        confirmDeleteBtn.addEventListener('click', () => { /* Implementasi sudah ada di atas */ });
-        searchInput.addEventListener('input', (e) => { searchTerm = e.target.value; renderRequests(); });
-        filterPendingBtn.addEventListener('click', () => {
-            currentFilter = 'Diajukan';
-            filterPendingBtn.classList.replace('inactive', 'active');
-            filterAllBtn.classList.replace('active', 'inactive');
-            renderRequests();
-        });
-        filterAllBtn.addEventListener('click', () => {
-            currentFilter = 'Semua';
-            filterAllBtn.classList.replace('inactive', 'active');
-            filterPendingBtn.classList.replace('active', 'inactive');
-            renderRequests();
+        const showDashboard = () => {
+            if (!allRequests || allRequests.length === 0) {
+                document.getElementById('totalRequests').textContent = '0';
+                document.getElementById('pendingRequests').textContent = '0';
+                document.getElementById('popularPart').textContent = '-';
+                document.getElementById('activeBranch').textContent = '-';
+                return;
+            }
+
+            const total = allRequests.length;
+            const pending = allRequests.filter(req => req.status === 'Diajukan').length;
+            document.getElementById('totalRequests').textContent = total;
+            document.getElementById('pendingRequests').textContent = pending;
+
+            const partCounts = {};
+            allRequests.forEach(req => {
+                req.parts.forEach(part => {
+                    partCounts[part.namaSparepart] = (partCounts[part.namaSparepart] || 0) + part.jumlah;
+                });
+            });
+            const popularPart = Object.keys(partCounts).length > 0 ? Object.keys(partCounts).reduce((a, b) => partCounts[a] > partCounts[b] ? a : b) : '-';
+            document.getElementById('popularPart').textContent = popularPart;
+            
+            const branchCounts = {};
+            allRequests.forEach(req => {
+                branchCounts[req.cabang] = (branchCounts[req.cabang] || 0) + 1;
+            });
+            const activeBranch = Object.keys(branchCounts).length > 0 ? Object.keys(branchCounts).reduce((a, b) => branchCounts[a] > branchCounts[b] ? a : b) : '-';
+            document.getElementById('activeBranch').textContent = activeBranch;
+
+            const ctx = document.getElementById('requestsByBranchChart').getContext('2d');
+            const chartData = {
+                labels: Object.keys(branchCounts),
+                datasets: [{
+                    label: 'Jumlah Permintaan',
+                    data: Object.values(branchCounts),
+                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1
+                }]
+            };
+            if(requestsChart) requestsChart.destroy();
+            requestsChart = new Chart(ctx, {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    scales: { y: { beginAtZero: true, ticks: { color: 'white' } }, x: { ticks: { color: 'white' } } },
+                    plugins: { legend: { labels: { color: 'white' } } }
+                }
+            });
+        };
+        
+        const exportToCSV = () => {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            const headers = ["ID Permintaan", "Tanggal", "Nama Pemesan", "Cabang", "Jenis Order", "Status", "Keterangan", "Kode Part", "Nama Part", "Jumlah"];
+            csvContent += headers.join(",") + "\r\n";
+
+            allRequests.forEach(req => {
+                req.parts.forEach(part => {
+                    const row = [
+                        `"${req.requestId}"`,
+                        `"${req.timestamp.toLocaleString('id-ID')}"`,
+                        `"${req.namaPemesan}"`,
+                        `"${req.cabang}"`,
+                        `"${req.jenisOrder}"`,
+                        `"${req.status}"`,
+                        `"${(req.keterangan || '').replace(/"/g, '""')}"`,
+                        `"${part.kodeSparepart}"`,
+                        `"${part.namaSparepart}"`,
+                        part.jumlah
+                    ];
+                    csvContent += row.join(",") + "\r\n";
+                });
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `laporan_permintaan_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        // --- Inisialisasi Aplikasi ---
+        document.addEventListener('DOMContentLoaded', () => {
+            auth.onAuthStateChanged(async (user) => {
+                if (user) {
+                    try {
+                        const userDoc = await db.collection("users").doc(user.uid).get();
+                        let userRole = 'user'; // Default role
+                        if (userDoc.exists && userDoc.data().role) {
+                            userRole = userDoc.data().role;
+                        }
+                        const currentUser = { email: user.email, uid: user.uid, role: userRole };
+                        sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+                        setupUIForUser(currentUser);
+                    } catch (error) {
+                        console.error("Gagal mengambil data peran pengguna:", error);
+                        alert("Terjadi kesalahan saat memverifikasi peran Anda. Anda akan dikeluarkan. Pastikan Security Rules dan collection 'users' sudah benar. Hubungi administrator.");
+                        handleLogout();
+                    }
+                } else {
+                    if (unsubscribe) unsubscribe();
+                    sessionStorage.removeItem('currentUser');
+                    showPage(loginPage);
+                    mainNav.style.display = 'none';
+                }
+            });
+            addPartRow(`manual-${Date.now()}`);
+            
+            // ATTACH EVENT LISTENERS
+            loginForm.addEventListener('submit', handleLogin);
+            document.getElementById('logoutButton').addEventListener('click', handleLogout);
+            addPartBtn.addEventListener('click', () => addPartRow(`manual-${Date.now()}`));
+            processCsvBtn.addEventListener('click', processCSV);
+            requestForm.addEventListener('submit', requestFormSubmit);
+            cancelDeleteBtn.addEventListener('click', () => { deleteModal.style.display = 'none'; deleteRequestId = null; });
+            confirmDeleteBtn.addEventListener('click', confirmDelete);
+            searchInput.addEventListener('input', (e) => { searchTerm = e.target.value; renderRequests(); });
+            filterPendingBtn.addEventListener('click', () => {
+                currentFilter = 'Diajukan';
+                filterPendingBtn.classList.replace('inactive', 'active');
+                filterAllBtn.classList.replace('active', 'inactive');
+                renderRequests();
+            });
+            filterAllBtn.addEventListener('click', () => {
+                currentFilter = 'Semua';
+                filterAllBtn.classList.replace('inactive', 'active');
+                filterPendingBtn.classList.replace('active', 'inactive');
+                renderRequests();
+            });
+            exportCsvBtn.addEventListener('click', exportToCSV);
         });
     </script>
 </body>
